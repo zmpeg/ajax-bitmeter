@@ -1,0 +1,165 @@
+<!DOCTYPE>
+<html>
+    <head>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+        <style type="text/css">
+            .device canvas {
+                border: 1px solid black;
+            }
+            .device {
+                display:block;
+                float:left;
+                border:5px solid gray;
+                margin: 15px;
+                padding:15px;
+            }
+        </style>
+        <script type="application/javascript">
+            
+            Array.prototype.maxDelta = function() {
+                var max = 0;
+                for(var i=1;i<this.length;i++)
+                {
+                    if((this[i]-this[i-1])>max)
+                        max = this[i]-this[i-1];
+                }
+                return max;
+            };
+            
+            var devicelist = new (function() {
+                this.devices = {};
+                this.parse = (function(parent) {
+                    return function(data) {
+                        for(i in data)
+                            if(data[i].dev)
+                                parent.devices[data[i]['dev']] = new device(data[i]);
+                        $("body").html(parent.render());
+                    };
+                })(this);
+                this.render = (function(parent) {
+                    return function() {
+                        var html = "";
+                        for(i in parent.devices)
+                            if(parent.devices[i].dev)
+                                html += parent.devices[i].render();
+                        return html;
+                    };
+                })(this);
+                this.update = (function(parent) {
+                    return function() {
+                        $.ajax({
+                            url:'json.php',
+                            dataType: 'json',
+                            cache: false,
+                            success: (function(parent) {
+                                return function(data) {
+                                    for(i in data)
+                                        if(data[i].dev)
+                                            parent.devices[data[i].dev].update(data[i]);
+                                };
+                            })(parent)
+                        });
+                    };
+                })(this);
+            })();
+            
+            
+            var device = function(data) {
+                this.dev = data.dev;
+                this.data = data;
+                this.net = {};
+                this.net.tx = [];
+                this.net.rx = [];
+                this.html = "<div id='"+this.data.dev+"' class='device'>";
+                this.html += "Name: <span class='name'>"+this.data.name+" ("+this.data.dev+")</span><br>";
+                this.html += "MAC: <span class='mac'>"+this.data.hwaddr+"</span><br>";
+                this.html += "IP: <span class='ip'>"+this.data.ipv4+"</span><br>";
+                this.html += "TX: <span class='tx'>"+this.data.tx+"</span><br>";
+                this.html += "RX: <span class='rx'>"+this.data.rx+"</span><br>";
+                this.html += "<canvas id='"+this.data.dev+"canvas' width='200' height='100'></canvas>";
+                this.html += "</div>";
+                this.render = function() {
+                    return this.html;
+                }
+                this.update = (function(parent) {
+                    return function(data) {
+                        parent.data = data;
+                        
+                        // Update net history for this item.
+                        parent.net.tx.push(data.tx);
+                        parent.net.rx.push(data.rx);
+                        
+                        if(parent.net.tx.length == 102)
+                            parent.net.tx.shift();
+                        
+                        if(parent.net.rx.length == 102)
+                            parent.net.rx.shift();
+                        
+                        // Find container & canvas
+                        container = $("#"+parent.dev);
+                        canvas = container.find("canvas").get(0).getContext("2d");
+                        
+                        // Update text
+                        rx_txt = data.rx+"b ("+(data.rx-parent.net.rx[parent.net.rx.length-2])+"b/s)";
+                        tx_txt = data.tx+"b ("+(data.tx-parent.net.tx[parent.net.tx.length-2])+"b/s)";
+                        container.find(".rx").html(rx_txt);
+                        container.find(".tx").html(tx_txt);
+                        
+                        // Clear canvas
+                        canvas.clearRect(0,0,200,100);
+                        
+                        // What the upper limit of the graph will be. Minimum 10kb/s
+                        commonMax = Math.max(parent.net.tx.maxDelta(), parent.net.rx.maxDelta(), 1024*10);
+                        
+                        // Update tx
+                        max = parent.net.tx.maxDelta();
+                        canvas.fillStyle = "rgba(0,255,0,1)";
+                        for(var i=1;i<Math.min(parent.net.tx.length,100);i++)
+                        {
+                            start = (i*2)-2;
+                            end = (i*2);
+                            var value = 100-Math.round(((parent.net.tx[i] - parent.net.tx[i-1])/commonMax)*100);
+                            canvas.fillRect(start,value,end-start,100-value);
+                        }
+                        
+                        // Update rx
+                        max = parent.net.rx.maxDelta();
+                        canvas.fillStyle = "rgba(0,0,255,0.75)";
+                        for(var i=1;i<Math.min(parent.net.rx.length,100);i++)
+                        {
+                            start = (i*2)-2;
+                            end = (i*2);
+                            var value = 100-Math.round(((parent.net.rx[i] - parent.net.rx[i-1])/commonMax)*100);
+                            canvas.fillRect(start,value,end-start,100-value);
+                        }
+                        
+                        // Add max value to graph
+                        max_s = Math.round(commonMax/1024)+"kb/s";
+                        canvas.fillStyle = "rgba(0,0,0,0.5)";
+                        canvas.fillRect(2,2,max_s.length*6,9);
+                        canvas.fillStyle = "rgb(255,255,255)";
+                        canvas.fillText(max_s,2,10);
+                        
+                        // Add tx/recieve to graph
+                        canvas.fillStyle = "rgb(0,255,0)";
+                        canvas.fillRect(181,3,8,8);
+                        canvas.fillStyle = "rgba(0,0,255,.75)";
+                        canvas.fillRect(181,15,8,8);
+                        canvas.fillStyle = "rgb(0,0,0)";
+                        canvas.fillText("rx",190,10);
+                        canvas.fillText("tx",190,22);
+                        
+                    };
+                })(this);
+            }
+            
+            $(function() {
+                $.getJSON("json.php", devicelist.parse);
+                window.clock = setInterval(devicelist.update,1000);
+            });
+        </script>
+    </head>
+    <body>
+        
+    </body>
+</html>
