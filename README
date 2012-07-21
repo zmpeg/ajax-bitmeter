@@ -1,0 +1,3 @@
+I always like bitmeter2, but thought it would be awesome to have something similar for my servers. While this doesn't yet operate as a standalone desktop app, it does provide something similar in a browser.
+
+This project has very few dependencies. A webserver with PHP, and the ability for PHP to run ifconfig command.
