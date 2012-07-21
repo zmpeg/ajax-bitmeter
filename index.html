@@ -89,10 +89,10 @@
                         parent.net.tx.push(data.tx);
                         parent.net.rx.push(data.rx);
                         
-                        if(parent.net.tx.length == 102)
+                        if(parent.net.tx.length == 101)
                             parent.net.tx.shift();
                         
-                        if(parent.net.rx.length == 102)
+                        if(parent.net.rx.length == 101)
                             parent.net.rx.shift();
                         
                         // Find container & canvas
