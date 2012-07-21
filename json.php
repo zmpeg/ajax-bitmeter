@@ -31,8 +31,8 @@ foreach($devices as &$d)
 	$result['hwaddr'] = implode("", $matches[3]);
 	$result['ipv4'] = implode("", $matches[4]);
 	$result['ipv6'] = implode("", $matches[5]);
-	$result['tx'] = $matches[6][count($matches[6])-2];
-	$result['rx'] = $matches[6][count($matches[6])-1];
+	$result['rx'] = $matches[6][count($matches[6])-2];
+	$result['tx'] = $matches[6][count($matches[6])-1];
 	$d = $result;
 }
 
